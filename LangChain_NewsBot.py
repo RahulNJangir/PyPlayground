@@ -6,7 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 # -------------------------------------------------------------
 # 1. SET YOUR FREE GEMINI API KEY
 # -------------------------------------------------------------
-#os.environ["GOOGLE_API_KEY"] = "YOUR_GOOGLE_API_KEY_HERE"  # Replace with your actual API key
+os.environ["GOOGLE_API_KEY"] = "YOUR_GOOGLE_API_KEY_HERE"  # Replace with your actual API key
 
 # --------------------------------------------------------------
 # 2. SETUP SEARCH TOOL & GEMINI MODEL
