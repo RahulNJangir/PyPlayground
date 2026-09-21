@@ -1,17 +1,19 @@
-from getpass import getpass
+from getpass import getpass  # accepts secret input without displaying
 
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 def get_api_key():
     try:
-        return getpass("Enter your Google API key: ")
+        return getpass("Enter your Google API key: ").strip()
     except (EOFError, OSError):
         return input("Enter your Google API key: ").strip()
 
 
 api_key = get_api_key()
+if not api_key:
+    raise ValueError("A Google API key is required to start the chatbot.")
 
 bot = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -22,16 +24,28 @@ memory = []
 
 print("Chatbot started. Type 'exit' to stop.")
 
-while True:
-    user_text = input("You: ").strip()
+try:
+    while True:
+        user_text = input("You: ").strip()
 
-    if user_text.lower() in {"exit", "quit"}:
-        print("Goodbye!")
-        break
+        if user_text.lower() in {"exit", "quit"}:
+            print("Goodbye!")
+            break
 
-    memory.append(HumanMessage(content=user_text))
+        if not user_text:
+            print("Please enter a message.")
+            continue
 
-    answer = bot.invoke(memory)
-    print("Bot:", answer.content)
+        memory.append(HumanMessage(content=user_text))
 
-    memory.append(AIMessage(content=answer.content))
+        try:
+            answer = bot.invoke(memory)
+        except Exception as error:
+            memory.pop()
+            print(f"Request failed: {error}")
+            continue
+
+        print("Bot:", answer.content)
+        memory.append(AIMessage(content=answer.content))
+except (EOFError, KeyboardInterrupt):
+    print("\nGoodbye!")
