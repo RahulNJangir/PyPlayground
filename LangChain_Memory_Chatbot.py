@@ -4,7 +4,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 
-def get_api_key():
+def get_api_key(): #function to get the API key from user input, using getpass for secure input
     try:
         return getpass("Enter your Google API key: ").strip()
     except (EOFError, OSError):
@@ -37,6 +37,7 @@ try:
             continue
 
         memory.append(HumanMessage(content=user_text))
+        print("------------")
 
         try:
             answer = bot.invoke(memory)
