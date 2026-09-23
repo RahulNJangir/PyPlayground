@@ -1,7 +1,8 @@
 import base64
-from getpass import getpass
 import io
-import time
+import os
+from getpass import getpass
+
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -10,40 +11,33 @@ from PIL import Image
 from sklearn.ensemble import RandomForestClassifier
 
 # ==========================================
-# 1. SECURE API KEY INPUT & OPENROUTER CLIENT
+# 1. OPENROUTER API KEY
 # ==========================================
 def get_openrouter_key():
-    """Prompts for OpenRouter API key using getpass."""
     try:
         return getpass("Enter your OpenRouter API key: ").strip()
     except (EOFError, OSError):
         return input("Enter your OpenRouter API key: ").strip()
 
 
-api_key = get_openrouter_key()
-
-# OpenRouter acts as an OpenAI-compatible API endpoint
+api_key = os.getenv("OPENROUTER_API_KEY") or get_openrouter_key()
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
 )
 
 
-def ask_openrouter_vision(frame, prompt):
-    """Encodes webcam frame to Base64 and sends it to OpenRouter Vision Model."""
+def ask_ai(frame, prompt):
     try:
-        # Convert OpenCV BGR frame to PIL RGB Image
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        pil_img = Image.fromarray(rgb_frame)
-
-        # Convert image to Base64 string
+        small_frame = cv2.resize(frame, (640, 480))
+        rgb = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(rgb)
         buffer = io.BytesIO()
-        pil_img.save(buffer, format="JPEG")
+        image.save(buffer, format="JPEG", quality=70)
         base64_image = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-        # OpenRouter model endpoint (uses free multimodal router)
         response = client.chat.completions.create(
-            model="openrouter/free",  # Automatically uses free vision model
+            model="openrouter/free",
             messages=[
                 {
                     "role": "user",
@@ -51,9 +45,7 @@ def ask_openrouter_vision(frame, prompt):
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            },
+                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
                         },
                     ],
                 }
@@ -61,158 +53,163 @@ def ask_openrouter_vision(frame, prompt):
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"OpenRouter API Error: {e}"
+        return f"AI Error: {e}"
 
 
 # ==========================================
-# 2. CREATE & TRAIN SCIKIT-LEARN MODEL
+# 2. TRAIN A FACE-EMOTION MODEL WITH SCIKIT-LEARN
 # ==========================================
-# Binary finger state vector: [Thumb, Index, Middle, Ring, Pinky]
-# Labels: 0 = Other/Fist, 1 = Thumbs Up, 2 = Peace Sign, 3 = Open Palm
-
+# Features: [left_eye_open, right_eye_open, mouth_open, smile_width, brow_tension, face_width]
+# Labels: 0=Neutral, 1=Happy, 2=Sad, 3=Angry, 4=Surprised
 X_train = np.array(
     [
-        [1, 0, 0, 0, 0],  # Thumbs Up
-        [0, 1, 1, 0, 0],  # Peace Sign
-        [1, 1, 1, 1, 1],  # Open Palm
-        [0, 0, 0, 0, 0],  # Fist
-        [0, 1, 0, 0, 0],  # Pointing Finger
-    ]
+        [0.22, 0.22, 0.12, 0.20, 0.03, 1.00],  # Neutral
+        [0.24, 0.24, 0.35, 0.62, 0.02, 1.00],  # Happy
+        [0.18, 0.18, 0.08, 0.16, 0.06, 1.00],  # Sad
+        [0.16, 0.16, 0.14, 0.24, 0.08, 1.00],  # Angry
+        [0.27, 0.27, 0.42, 0.38, 0.02, 1.00],  # Surprised
+    ],
+    dtype=float,
 )
-y_train = np.array([1, 2, 3, 0, 0])
+y_train = np.array([0, 1, 2, 3, 4])
 
-clf = RandomForestClassifier(n_estimators=10, random_state=42)
-clf.fit(X_train, y_train)
+emotion_model = RandomForestClassifier(n_estimators=15, random_state=42)
+emotion_model.fit(X_train, y_train)
+
+emotion_names = ["Neutral", "Happy", "Sad", "Angry", "Surprised"]
 
 # ==========================================
-# 3. WEBCAM & MEDIAPIPE TRACKING
+# 3. FACE FEATURE EXTRACTION
 # ==========================================
-mp_hands = mp.solutions.hands
+def distance(p1, p2):
+    return np.linalg.norm(np.array([p1.x - p2.x, p1.y - p2.y]))
+
+
+def extract_face_features(face_landmarks):
+    lm = face_landmarks.landmark
+
+    left_eye_top = lm[159]
+    left_eye_bottom = lm[145]
+    right_eye_top = lm[386]
+    right_eye_bottom = lm[374]
+
+    mouth_top = lm[13]
+    mouth_bottom = lm[14]
+    mouth_left = lm[61]
+    mouth_right = lm[291]
+
+    brow_left = lm[70]
+    brow_right = lm[300]
+
+    left_eye_open = distance(left_eye_top, left_eye_bottom)
+    right_eye_open = distance(right_eye_top, right_eye_bottom)
+    mouth_open = distance(mouth_top, mouth_bottom)
+    smile_width = distance(mouth_left, mouth_right)
+    brow_tension = abs(distance(brow_left, left_eye_top) - distance(brow_right, right_eye_top))
+    face_width = distance(lm[234], lm[454])
+
+    features = np.array(
+        [left_eye_open, right_eye_open, mouth_open, smile_width, brow_tension, face_width],
+        dtype=float,
+    )
+    return features.reshape(1, -1)
+
+
+# ==========================================
+# 4. WEBCAM + FACE DETECTION
+# ==========================================
+mp_face_mesh = mp.solutions.face_mesh
 mp_draw = mp.solutions.drawing_utils
-hands = mp_hands.Hands(
-    max_num_hands=1, min_detection_confidence=0.7, min_tracking_confidence=0.7
+face_mesh = mp_face_mesh.FaceMesh(
+    max_num_faces=1,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5,
 )
 
 cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FPS, 30)
 
+if not cap.isOpened():
+    raise RuntimeError("Camera not found or cannot be opened.")
 
-def extract_finger_states(landmarks):
-    """Extracts 1/0 binary state for 5 fingers from MediaPipe joints."""
-    fingers = []
+cooldown = 0
+ai_text = "Emotion detection ready"
+detected_emotion = "No face"
+last_prediction = None
+stable_count = 0
+frame_count = 0
 
-    # Thumb check
-    if landmarks[4].x < landmarks[3].x:
-        fingers.append(1)
-    else:
-        fingers.append(0)
+print("Emotion detection started. Press 'q' to quit.")
 
-    # 4 Fingers check
-    tips, pips = [8, 12, 16, 20], [6, 10, 14, 18]
-    for tip, pip in zip(tips, pips):
-        if landmarks[tip].y < landmarks[pip].y:
-            fingers.append(1)
-        else:
-            fingers.append(0)
-
-    return np.array(fingers).reshape(1, -1)
-
-
-# Program State variables
-cooldown_counter = 0
-ai_response_text = "Perform a gesture to capture webcam photo..."
-
-print("\nWebcam Gesture Assistant Running. Show a gesture to camera. Press 'q' to quit.\n")
-
-while cap.isOpened():
+while True:
     success, frame = cap.read()
     if not success:
         break
 
+    frame_count += 1
     frame = cv2.flip(frame, 1)
-    h, w, c = frame.shape
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = hands.process(rgb_frame)
 
-    gesture_label = "No Gesture"
+    # Run heavy face detection only every other frame for better speed
+    if frame_count % 2 == 0:
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = face_mesh.process(rgb)
 
-    if results.multi_hand_landmarks:
-        for hand_landmarks in results.multi_hand_landmarks:
+        if results.multi_face_landmarks:
+            face = results.multi_face_landmarks[0]
             mp_draw.draw_landmarks(
-                frame, hand_landmarks, mp_hands.HAND_CONNECTIONS
+                frame,
+                face,
+                mp_face_mesh.FACEMESH_CONTOURS,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=mp_draw.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1),
             )
 
-            # Predict gesture using Scikit-Learn
-            finger_features = extract_finger_states(hand_landmarks.landmark)
-            prediction = clf.predict(finger_features)[0]
+            features = extract_face_features(face)
+            prediction = int(emotion_model.predict(features)[0])
+            current_emotion = emotion_names[prediction]
 
-            if cooldown_counter == 0:
-                if prediction in {1, 2, 3}:
-                    if prediction == 1:  # Thumbs Up
-                        gesture_label = "Thumbs Up Detected!"
-                        prompt = "Describe the object or item I am holding in front of the camera in 2 short sentences."
-                    elif prediction == 2:  # Peace Sign
-                        gesture_label = "Peace Sign Detected!"
-                        prompt = "Analyze my face, pose, or expression in this picture and give a short fun comment."
-                    elif prediction == 3:  # Open Palm
-                        gesture_label = "Open Palm Detected!"
-                        prompt = "Summarize everything visible in this webcam photo in detail."
+            if prediction == last_prediction:
+                stable_count += 1
+            else:
+                stable_count = 1
+                last_prediction = prediction
 
-                    ai_response_text = "Snapping webcam photo & asking AI..."
-                    cv2.putText(
-                        frame,
-                        f"Status: {gesture_label}",
-                        (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.7,
-                        (0, 255, 0),
-                        2,
-                    )
-                    cv2.imshow("Webcam Vision Assistant", frame)
-                    cv2.waitKey(1)
+            if stable_count >= 3 and cooldown <= 0:
+                detected_emotion = current_emotion
+                prompt = f"Look at this face and say in one short sentence whether the person seems {detected_emotion.lower()} and why."
+                ai_text = ask_ai(frame, prompt)
+                cooldown = 30
+                stable_count = 0
+        else:
+            detected_emotion = "No face"
+            last_prediction = None
+            stable_count = 0
 
-                    # SNAP PICTURE DIRECTLY FROM WEBCAM FRAME AND SEND TO OPENROUTER
-                    ai_response_text = ask_openrouter_vision(frame, prompt)
-                    cooldown_counter = 90  # Cooldown clock (~3 seconds)
+    if cooldown > 0:
+        cooldown -= 1
 
-    if cooldown_counter > 0:
-        cooldown_counter -= 1
-
-    # HUD Text Overlays
     cv2.putText(
         frame,
-        f"Status: {gesture_label}",
+        f"Emotion: {detected_emotion}",
         (10, 30),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
         (0, 255, 0),
         2,
     )
-
-    # Wrap AI Response text into lines so it fits on screen
-    words = ai_response_text.split(" ")
-    line1 = " ".join(words[:12])
-    line2 = " ".join(words[12:24])
-
     cv2.putText(
         frame,
-        f"AI: {line1}",
-        (10, h - 50),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (255, 255, 255),
-        1,
-    )
-    cv2.putText(
-        frame,
-        f"    {line2}",
-        (10, h - 20),
+        ai_text[:80],
+        (10, frame.shape[0] - 20),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.5,
         (255, 255, 255),
         1,
     )
 
-    cv2.imshow("Webcam Vision Assistant", frame)
+    cv2.imshow("Face Emotion Detection", frame)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break

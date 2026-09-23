@@ -8,10 +8,11 @@ def get_api_key(): #function to get the API key from user input, using getpass f
     try:
         return getpass("Enter your Google API key: ").strip()
     except (EOFError, OSError):
-        return input("Enter your Google API key: ").strip()
+        return input("Try block:Error fetching in API key: ").strip()
 
 
 api_key = get_api_key()
+
 if not api_key:
     raise ValueError("A Google API key is required to start the chatbot.")
 
@@ -38,6 +39,9 @@ try:
 
         memory.append(HumanMessage(content=user_text))
         print("------------")
+        print(memory)
+        print("------------")
+
 
         try:
             answer = bot.invoke(memory)
