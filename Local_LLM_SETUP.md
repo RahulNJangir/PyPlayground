@@ -1,108 +1,104 @@
 # 🧠 Local LLM Chatbot
 
-Run **Llama 3.2** locally and chat with it from Python using **Ollama** and **LiteLLM**. Once the model is downloaded, prompts and responses are handled on your computer rather than sent to a hosted LLM API.
+Run **Llama 3.2** on your computer and chat with it from Python using **Ollama** and **LiteLLM**. After the model is downloaded, inference runs locally without sending prompts to a hosted LLM API.
 
-## 🔄 How it works
+## 🏗️ How it works
 
 ```text
-You → Python chatbot → LiteLLM → Ollama → Llama 3.2
+👤 You → 🐍 Python app → 🔌 LiteLLM → 🦙 Ollama → 🤖 Llama 3.2
 ```
 
-| Part | What it does |
+| Component | Role |
 | --- | --- |
-| 🐍 Python | Runs the chat application |
-| 🔌 LiteLLM | Connects Python to the model |
-| 🦙 Ollama | Serves the model locally |
-| 🤖 Llama 3.2 | Generates responses |
+| 🐍 **Python** | Runs the chatbot |
+| 🔌 **LiteLLM** | Connects the app to the model |
+| 🦙 **Ollama** | Serves the model locally |
+| 🤖 **Llama 3.2** | Generates responses |
 
-## 📋 Requirements
+## 📋 Prerequisites
 
-- Windows with Python and `pip`
-- [Ollama for Windows](https://ollama.com/download)
-- An internet connection for installation and the initial model download
+- Windows with Python and `pip` installed
+- Ollama for Windows
+- Internet access to install the software and download the model
 
-Check that Python and pip are available:
+Check Python and pip from PowerShell:
 
 ```powershell
 python --version
 python -m pip --version
 ```
 
-## ⚙️ Set up
+## ⚙️ Setup
 
-### 1. 🦙 Install and start Ollama
+### 1. Install Ollama
 
-Install Ollama from [ollama.com/download](https://ollama.com/download), then open a new PowerShell window and check the installation:
+Install Ollama from [ollama.com/download](https://ollama.com/download), or use `winget`:
+
+```powershell
+winget install --id Ollama.Ollama -e
+```
+
+Open a new PowerShell window and verify the installation:
 
 ```powershell
 ollama --version
 ```
 
-### 2. 🤖 Download Llama 3.2
+### 2. Download Llama 3.2
 
 ```powershell
 ollama pull llama3.2
 ```
 
-Confirm that the model is installed:
+Check that the model is installed:
 
 ```powershell
 ollama list
 ```
 
-### 3. 🔌 Install LiteLLM
+### 3. Install LiteLLM
 
-From your project directory, run:
+From the project directory, install LiteLLM into the Python environment used to run the chatbot:
 
 ```powershell
 python -m pip install litellm
 ```
 
-### 4. 💬 Start chatting
+### 4. Run the chatbot
 
-Run the chatbot:
+From the directory containing `LiteLLM.py`, start the app:
 
 ```powershell
 python LiteLLM.py
 ```
 
-Enter a message at the `You:` prompt. Type `exit` to end the chat.
+Type a message at the `You:` prompt. Enter `exit` to quit.
 
-## 🐍 What the Python app does
+## 💬 What the app does
 
-`LiteLLM.py` sends each prompt to the local Ollama service at `http://localhost:11434` and prints the model's response:
-
-```python
-from litellm import completion
-
-response = completion(
-    model="ollama/llama3.2",
-    messages=[{"role": "user", "content": "What is machine learning?"}],
-    api_base="http://localhost:11434",
-)
-
-print(response.choices[0].message.content)
-```
-
-The example above makes a single request. The included `LiteLLM.py` script wraps this call in a loop so you can continue chatting until you type `exit`.
+`LiteLLM.py` sends each message to the local Ollama service at `http://localhost:11434`, using the `ollama/llama3.2` model, and displays the response. It keeps prompting until you enter `exit`.
 
 ## 🛠️ Troubleshooting
 
-### ⚠️ Ollama is not responding
+### Ollama is not responding
 
-Make sure the Ollama application is running, then try:
+Make sure Ollama is installed and running. You can also start the model manually:
 
 ```powershell
 ollama run llama3.2
 ```
 
-### 📥 The model is missing
+### The model is not installed
 
-Download it with `ollama pull llama3.2`, then run the chatbot again.
+Download it, then try again:
 
-### 📦 Python cannot import LiteLLM
+```powershell
+ollama pull llama3.2
+```
 
-Install LiteLLM in the same Python environment used to run the script:
+### Python cannot import LiteLLM
+
+Install LiteLLM with the same Python command you use to run the app:
 
 ```powershell
 python -m pip install litellm
@@ -116,4 +112,6 @@ python -m pip install litellm
 └── Local_LLM_SETUP.md
 ```
 
-**✨ Stack:** 🐍 Python · 🔌 LiteLLM · 🦙 Ollama · 🤖 Llama 3.2
+---
+
+**✨ Local AI stack:** Python · LiteLLM · Ollama · Llama 3.2
