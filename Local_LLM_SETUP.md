@@ -1,235 +1,119 @@
-# 🧠 Local LLM Platform
+# 🧠 Local LLM Chatbot
 
-<p align="center">
-  <strong>🐍 Python · 🔌 LiteLLM · 🦙 Ollama · 🤖 Llama 3.2</strong>
-</p>
+Run **Llama 3.2** locally and chat with it from Python using **Ollama** and **LiteLLM**. Once the model is downloaded, prompts and responses are handled on your computer rather than sent to a hosted LLM API.
 
-<p align="center">
-  A simple local LLM stack for running and interacting with Llama 3.2 through Python.
-</p>
-
----
-
-## 🎯 Overview
-
-This project demonstrates how to connect a **Python application** to a locally running **Llama 3.2** model using **Ollama** and **LiteLLM**.
-
-> 💡 **Goal:** Build a simple, local, and easy-to-understand LLM application without relying on a cloud API.
-
----
-
-## 🏗️ Architecture
+## 🔄 How it works
 
 ```text
-User
-  │
-  ▼
-Python Application
-  │
-  ▼
-LiteLLM
-  │
-  ▼
-Ollama
-  │
-  ▼
-Llama 3.2
-  │
-  ▼
-AI Response
+You → Python chatbot → LiteLLM → Ollama → Llama 3.2
 ```
 
-## 🧩 Components
+| Part | What it does |
+| --- | --- |
+| 🐍 Python | Runs the chat application |
+| 🔌 LiteLLM | Connects Python to the model |
+| 🦙 Ollama | Serves the model locally |
+| 🤖 Llama 3.2 | Generates responses |
 
-| Component | Role |
-|---|---|
-| **Python** | Application layer |
-| **LiteLLM** | LLM interface / gateway |
-| **Ollama** | Local model runtime |
-| **Llama 3.2** | Language model |
+## 📋 Requirements
 
-## ⚙️ Prerequisites
+- Windows with Python and `pip`
+- [Ollama for Windows](https://ollama.com/download)
+- An internet connection for installation and the initial model download
 
-Check Python and pip:
+Check that Python and pip are available:
 
 ```powershell
 python --version
-pip --version
+python -m pip --version
 ```
 
-## 📦 Installation
+## ⚙️ Set up
 
-### 1. Install Ollama
+### 1. 🦙 Install and start Ollama
 
-```powershell
-winget install --id Ollama.Ollama -e
-```
-
-Verify:
+Install Ollama from [ollama.com/download](https://ollama.com/download), then open a new PowerShell window and check the installation:
 
 ```powershell
 ollama --version
 ```
 
-### 2. Install Llama 3.2
+### 2. 🤖 Download Llama 3.2
 
 ```powershell
 ollama pull llama3.2
 ```
 
-Verify the model:
+Confirm that the model is installed:
 
 ```powershell
 ollama list
 ```
 
-Run a test:
+### 3. 🔌 Install LiteLLM
+
+From your project directory, run:
 
 ```powershell
-ollama run llama3.2 "What is AWS?"
+python -m pip install litellm
 ```
 
-### 3. Install LiteLLM
+### 4. 💬 Start chatting
+
+Run the chatbot:
 
 ```powershell
-pip install litellm
+python LiteLLM.py
 ```
 
-Verify:
+Enter a message at the `You:` prompt. Type `exit` to end the chat.
 
-```powershell
-python -c "import litellm; print(litellm.__version__)"
-```
+## 🐍 What the Python app does
 
-## 🐍 Python Integration
-
-Create `LiteLLM.py`:
+`LiteLLM.py` sends each prompt to the local Ollama service at `http://localhost:11434` and prints the model's response:
 
 ```python
 from litellm import completion
 
 response = completion(
     model="ollama/llama3.2",
-    messages=[
-        {"role": "user", "content": "What is AWS?"}
-    ],
-    api_base="http://localhost:11434"
+    messages=[{"role": "user", "content": "What is machine learning?"}],
+    api_base="http://localhost:11434",
 )
 
 print(response.choices[0].message.content)
 ```
 
-Run:
+The example above makes a single request. The included `LiteLLM.py` script wraps this call in a loop so you can continue chatting until you type `exit`.
+
+## 🛠️ Troubleshooting
+
+### ⚠️ Ollama is not responding
+
+Make sure the Ollama application is running, then try:
 
 ```powershell
-python LiteLLM.py
+ollama run llama3.2
 ```
 
-## 🔄 Request Flow
+### 📥 The model is missing
+
+Download it with `ollama pull llama3.2`, then run the chatbot again.
+
+### 📦 Python cannot import LiteLLM
+
+Install LiteLLM in the same Python environment used to run the script:
+
+```powershell
+python -m pip install litellm
+```
+
+## 📁 Project files
 
 ```text
-Python
-  ↓
-LiteLLM
-  ↓
-Ollama
-  ↓
-Llama 3.2
-  ↓
-Response
+.
+├── LiteLLM.py
+└── Local_LLM_SETUP.md
 ```
 
-## 📚 Key Concepts
-
-- **Python** — builds the application.
-- **LiteLLM** — provides a common interface for calling LLMs.
-- **Ollama** — runs LLMs locally.
-- **Llama 3.2** — generates the responses.
-
----
-
-## 🚀 Quick Reference
-
-| Component | Purpose |
-|---|---|
-| 🐍 **Python** | Application layer |
-| 🔌 **LiteLLM** | Unified LLM interface |
-| 🦙 **Ollama** | Local model runtime |
-| 🧠 **Llama 3.2** | Language model |
-
-### 🔄 Request Flow
-
-```text
-👤 User
-   ↓
-🐍 Python Application
-   ↓
-🔌 LiteLLM
-   ↓
-🦙 Ollama
-   ↓
-🧠 Llama 3.2
-   ↓
-💬 Response
-```
-
----
-
-<div align="center">
-
-### ⭐ Local LLM Stack
-
-**Python + LiteLLM + Ollama + Llama 3.2**
-
-*Run and interact with an LLM locally through a simple Python application.*
-
-</div>
-
-
----
-
-## ✨ Project Highlights
-
-| ✨ Feature | 📝 Description |
-|---|---|
-| 🏠 **Local AI** | Run the LLM directly on your machine |
-| 🔌 **Unified Interface** | Use LiteLLM to communicate with the model |
-| 🦙 **Ollama Runtime** | Manage and serve the local model |
-| 🤖 **Llama 3.2** | Generate natural-language responses |
-| 🐍 **Python Ready** | Easily integrate the stack into Python applications |
-| 🔒 **Local Processing** | No external LLM API is required for inference |
-
----
-
-## 🧭 Architecture at a Glance
-
-```text
-        👤 User
-           │
-           ▼
-    🐍 Python Application
-           │
-           ▼
-       🔌 LiteLLM
-           │
-           ▼
-       🦙 Ollama
-           │
-           ▼
-      🤖 Llama 3.2
-           │
-           ▼
-      💬 AI Response
-```
-
----
-
-<div align="center">
-
-## 🚀 Local LLM • Simple • Private • Extensible
-
-**🐍 Python + 🔌 LiteLLM + 🦙 Ollama + 🤖 Llama 3.2**
-
-⭐ *A practical foundation for building local AI applications.*
-
-</div>
+**✨ Stack:** 🐍 Python · 🔌 LiteLLM · 🦙 Ollama · 🤖 Llama 3.2
