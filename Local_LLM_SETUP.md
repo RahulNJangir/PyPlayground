@@ -115,3 +115,11 @@ python -m pip install litellm
 ---
 
 **✨ Local AI stack:** Python · LiteLLM · Ollama · Llama 3.2
+
+## 🛑 Stop the model
+
+To stop the running Llama 3.2 model in PowerShell:
+
+```powershell
+ollama stop llama3.2
+```
