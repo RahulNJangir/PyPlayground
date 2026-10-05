@@ -66,17 +66,17 @@ python -m pip install litellm
 
 ### 4. Run the chatbot
 
-From the directory containing `LiteLLM.py`, start the app:
+From the directory containing `ollama_litellm_chatbot.py`, start the app:
 
 ```powershell
-python LiteLLM.py
+python ollama_litellm_chatbot.py
 ```
 
 Type a message at the `You:` prompt. Enter `exit` to quit.
 
 ## 💬 What the app does
 
-`LiteLLM.py` sends each message to the local Ollama service at `http://localhost:11434`, using the `ollama/llama3.2` model, and displays the response. It keeps prompting until you enter `exit`.
+`ollama_litellm_chatbot.py` sends each message to the local Ollama service at `http://localhost:11434`, using the `ollama/llama3.2` model, and displays the response. It keeps prompting until you enter `exit`.
 
 ## 🛠️ Troubleshooting
 
@@ -108,8 +108,8 @@ python -m pip install litellm
 
 ```text
 .
-├── LiteLLM.py
-└── Local_LLM_SETUP.md
+├── ollama_litellm_chatbot.py
+└── local_llm_setup.md
 ```
 
 ---
